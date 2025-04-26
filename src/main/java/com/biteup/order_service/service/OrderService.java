@@ -6,6 +6,7 @@ import com.biteup.order_service.httpserver.ProductClient;
 import com.biteup.order_service.httpserver.RestaurantClient;
 import com.biteup.order_service.model.CartResponse;
 import com.biteup.order_service.model.Order;
+import com.biteup.order_service.model.OrderMessage;
 import com.biteup.order_service.model.Product;
 import com.biteup.order_service.model.Restaurant;
 import com.biteup.order_service.repository.OrderRepository;
@@ -13,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -53,7 +56,9 @@ public class OrderService {
     for (Order order : orders) {
       try {
         Product product = productClient.getFoodDataById(order.getFoodId());
-        Restaurant restaurant = restaurantClient.getRestaurantDataByEmail(order.getRestaurantEmail());
+        Restaurant restaurant = restaurantClient.getRestaurantDataByEmail(
+          order.getRestaurantEmail()
+        );
         CartResponse cart = new CartResponse();
 
         cart.setFoodId(order.getFoodId());
@@ -65,7 +70,7 @@ public class OrderService {
 
         cart.setQuantity(order.getQuantity());
         cart.setRestaurantEmail(order.getRestaurantEmail());
-        
+
         cart.setResName(restaurant.getName());
         cart.setResdescription(restaurant.getDescription());
         cart.setAddress(restaurant.getAddress());
@@ -85,5 +90,16 @@ public class OrderService {
     }
 
     return cartResponses;
+  }
+
+  @Service
+  public class OrderProducer {
+
+    @Autowired
+    private KafkaTemplate<String, OrderMessage> kafkaTemplate;
+
+    public void sendOrder(OrderMessage OrderMessage) {
+      kafkaTemplate.send("assigned-orders", OrderMessage.getDeliveryPersonId(), OrderMessage);
+    }
   }
 }
