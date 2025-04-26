@@ -86,4 +86,30 @@ public class OrderService {
 
     return cartResponses;
   }
+
+  public OrderResponseDTO updateOrder(String id, OrderRequestDTO req) {
+    Order existingOrder = orderRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Order not found"));
+
+    existingOrder.setQuantity(req.getQuantity());
+    existingOrder.setFoodId(req.getId());
+    existingOrder.setRestaurantEmail(req.getRestaurantEmail());
+    existingOrder.setEmail(req.getEmail());
+
+    orderRepository.save(existingOrder);
+    log.info("Order Updated Successfully");
+
+    return new OrderResponseDTO("Order Updated Successfully", null);
+}
+
+public OrderResponseDTO deleteOrder(String id) {
+    Order existingOrder = orderRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Order not found"));
+
+    orderRepository.delete(existingOrder);
+    log.info("Order Deleted Successfully");
+
+    return new OrderResponseDTO("Order Deleted Successfully", null);
+}
+
 }
