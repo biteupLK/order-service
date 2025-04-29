@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @Builder
 public class CartResponse {
+    private String id;
     private String foodId;
     private String name;
     private String description;

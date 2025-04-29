@@ -12,6 +12,7 @@ import com.biteup.order_service.model.Restaurant;
 import com.biteup.order_service.repository.OrderRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,20 @@ public class OrderService {
   private final ProductClient productClient;
 
   public OrderResponseDTO placeorders(OrderRequestDTO req) {
+    // Check if an order with the same foodId, email, and restaurantEmail already exists
+    Optional<Order> existingOrder =
+      orderRepository.findByEmailAndFoodIdAndRestaurantEmail(
+        req.getEmail(),
+        req.getId(),
+        req.getRestaurantEmail()
+      );
+
+    if (existingOrder.isPresent()) {
+      log.info("Already in cart");
+      return new OrderResponseDTO(null, "Already in cart");
+    }
+
+    // Proceed to create new order
     Order orders = new Order();
     orders.setEmail(req.getEmail());
     orders.setFoodId(req.getId());
@@ -37,10 +52,9 @@ public class OrderService {
     Order saved = orderRepository.save(orders);
     log.info("Order Created Successfully");
 
-    if (saved.getId() == null) return new OrderResponseDTO(
-      null,
-      "System Error"
-    );
+    if (saved.getId() == null) {
+      return new OrderResponseDTO(null, "System Error");
+    }
 
     return new OrderResponseDTO("Cart Add Success", null);
   }
@@ -61,6 +75,8 @@ public class OrderService {
         );
         CartResponse cart = new CartResponse();
 
+        
+
         cart.setFoodId(order.getFoodId());
         cart.setName(product.getName());
         cart.setDescription(product.getDescription());
@@ -70,6 +86,7 @@ public class OrderService {
 
         cart.setQuantity(order.getQuantity());
         cart.setRestaurantEmail(order.getRestaurantEmail());
+        cart.setId(order.getId());
 
         cart.setResName(restaurant.getName());
         cart.setResdescription(restaurant.getDescription());
@@ -92,6 +109,19 @@ public class OrderService {
     return cartResponses;
   }
 
+  public OrderResponseDTO deleteOrders(String id) {
+    if (id == null || id.trim().isEmpty()) {
+      return new OrderResponseDTO(null, "Invalid order ID");
+    }
+
+    if (!orderRepository.existsById(id)) {
+      return new OrderResponseDTO(null, "Order not found");
+    }
+
+    orderRepository.deleteById(id);
+    return new OrderResponseDTO("Removed from the cart", null);
+  }
+
   @Service
   public class OrderProducer {
 
@@ -99,7 +129,11 @@ public class OrderService {
     private KafkaTemplate<String, OrderMessage> kafkaTemplate;
 
     public void sendOrder(OrderMessage OrderMessage) {
-      kafkaTemplate.send("assigned-orders", OrderMessage.getDeliveryPersonId(), OrderMessage);
+      kafkaTemplate.send(
+        "assigned-orders",
+        OrderMessage.getDeliveryPersonId(),
+        OrderMessage
+      );
     }
   }
 }
